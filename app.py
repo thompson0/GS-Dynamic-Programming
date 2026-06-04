@@ -1,15 +1,16 @@
 from dataclasses import dataclass
-
+from draw import foguete, planeta, abertura
 BODY_DATA = {
-    "Mercury": {"body_type": "planet", "distance_mkm": 57.9, "gravity": 3.7},
+    "Mercurio": {"body_type": "planet", "distance_mkm": 57.9, "gravity": 3.7},
     "Venus": {"body_type": "planet", "distance_mkm": 108.2, "gravity": 8.87},
-    "Earth": {"body_type": "planet", "distance_mkm": 149.6, "gravity": 9.81},
-    "Mars": {"body_type": "planet", "distance_mkm": 227.9, "gravity": 3.71},
+    "Terra": {"body_type": "planet", "distance_mkm": 149.6, "gravity": 9.81},
+    "Marte": {"body_type": "planet", "distance_mkm": 227.9, "gravity": 3.71},
     "Jupiter": {"body_type": "planet", "distance_mkm": 778.5, "gravity": 24.79},
-    "Saturn": {"body_type": "planet", "distance_mkm": 1434.0, "gravity": 10.44},
-    "Uranus": {"body_type": "planet", "distance_mkm": 2871.0, "gravity": 8.69},
-    "Neptune": {"body_type": "planet", "distance_mkm": 4495.1, "gravity": 11.15},
+    "Saturno": {"body_type": "planet", "distance_mkm": 1434.0, "gravity": 10.44},
+    "Urano": {"body_type": "planet", "distance_mkm": 2871.0, "gravity": 8.69},
+    "Netuno": {"body_type": "planet", "distance_mkm": 4495.1, "gravity": 11.15},
 }
+print(abertura)
 
 @dataclass(frozen=True)
 class Body:
@@ -88,9 +89,17 @@ class Queue:
 @dataclass
 class Route:
     path: LinkedList
+    distance_mkm: float
+    travel_time_days: float
     score: float
 
 
+ROCKET_PROFILES = {
+    "1": ("Falcon 9", 7.9),
+    "2": ("Saturn V", 11.2),
+    "3": ("Ariane 5", 7.8),
+    "4": ("SLS", 10.8),
+}
 
 
 def load_bodies() -> list[Body]:
@@ -125,29 +134,37 @@ def bubble_sort(items: list[Body]) -> list[Body]:
     return sorted_items
 
 
-def build_route(origin: Body, destination: Body, bodies: list[Body]) -> Route:
+def km_s_to_mkm_per_day(speed_km_s: float) -> float:
+    return speed_km_s * 86400 / 1_000_000
+
+
+def build_route(origin: Body, destination: Body, bodies: list[Body], rocket_speed_mkm_per_day: float) -> Route:
     best_path = LinkedList()
     best_path.append(origin)
     best_path.append(destination)
-    best_score = abs(destination.distance_mkm - origin.distance_mkm)
+    best_distance = abs(destination.distance_mkm - origin.distance_mkm)
+    best_time = best_distance / rocket_speed_mkm_per_day
+    best_score = best_distance + best_time
 
     for body in bodies:
         if body.name in {origin.name, destination.name}:
             continue
-        candidate_score = (
-            abs(body.distance_mkm - origin.distance_mkm)
-            + abs(destination.distance_mkm - body.distance_mkm)
-            + body.gravity * 2
+        candidate_distance = abs(body.distance_mkm - origin.distance_mkm) + abs(
+            destination.distance_mkm - body.distance_mkm
         )
+        candidate_time = candidate_distance / rocket_speed_mkm_per_day
+        candidate_score = candidate_distance + candidate_time
         if candidate_score < best_score:
             candidate_path = LinkedList()
             candidate_path.append(origin)
             candidate_path.append(body)
             candidate_path.append(destination)
             best_path = candidate_path
+            best_distance = candidate_distance
+            best_time = candidate_time
             best_score = candidate_score
 
-    return Route(best_path, round(best_score, 2))
+    return Route(best_path, round(best_distance, 2), round(best_time, 2), round(best_score, 2))
 
 
 def route_to_text(route: Route) -> str:
@@ -159,6 +176,26 @@ def print_body(body: Body) -> None:
     print(f"- {body.name} | {body.body_type} | distancia {body.distance_mkm} Mkm | gravidade {body.gravity} m/s2")
 
 
+def print_route(route: Route) -> None:
+    print(f"[INFO] rota: {route_to_text(route)}")
+    print(f"[INFO] distancia: {route.distance_mkm} Mkm")
+    print(f"[INFO] tempo estimado: {route.travel_time_days} dias")
+    print(f"[INFO] score: {route.score}")
+
+
+def choose_rocket() -> tuple[str, float]:
+    print(foguete)
+    print("\nEscolha um foguete:")
+    for key, (name, speed_km_s) in ROCKET_PROFILES.items():
+        print(f"{key} - {name} ({speed_km_s} km/s)")
+    choice = input("Opcao: ").strip()
+    rocket = ROCKET_PROFILES.get(choice)
+    if rocket is None:
+        raise ValueError("foguete invalido")
+    name, speed_km_s = rocket
+    return name, km_s_to_mkm_per_day(speed_km_s)
+
+
 def main() -> None:
     bodies = load_bodies()
     if not bodies:
@@ -166,6 +203,8 @@ def main() -> None:
 
     missions = Queue()
     history = Stack()
+    rocket_name = "Falcon 9"
+    rocket_speed_mkm_per_day = km_s_to_mkm_per_day(7.9)
 
     print("[INFO] Planejador de rota iniciado")
 
@@ -177,12 +216,15 @@ def main() -> None:
         print("4 - Enfileirar missao")
         print("5 - Processar fila")
         print("6 - Desfazer ultima rota")
+        print("7 - Escolher velocidade do foguete")
         print("0 - Sair")
+        print(f"[INFO] foguete atual: {rocket_name}")
 
         choice = input("Opcao: ").strip()
 
         try:
             if choice == "1":
+                print(planeta)
                 for body in bubble_sort(bodies):
                     print_body(body)
 
@@ -205,10 +247,9 @@ def main() -> None:
                 if origin.name == destination.name:
                     print("[ERRO] origem e destino devem ser diferentes")
                     continue
-                route = build_route(origin, destination, bodies)
+                route = build_route(origin, destination, bodies, rocket_speed_mkm_per_day)
                 history.push(route)
-                print(f"[INFO] rota: {route_to_text(route)}")
-                print(f"[INFO] score: {route.score}")
+                print_route(route)
 
             elif choice == "4":
                 origin_name = input("Origem: ").strip()
@@ -227,9 +268,10 @@ def main() -> None:
                     if origin is None or destination is None:
                         print(f"[ERRO] missao invalida: {mission.origin} -> {mission.destination}")
                         continue
-                    route = build_route(origin, destination, bodies)
+                    route = build_route(origin, destination, bodies, rocket_speed_mkm_per_day)
                     history.push(route)
-                    print(f"[INFO] {mission.origin} -> {mission.destination}: {route_to_text(route)} | score {route.score}")
+                    print(f"[INFO] {mission.origin} -> {mission.destination}")
+                    print_route(route)
 
             elif choice == "6":
                 if history.empty():
@@ -237,6 +279,11 @@ def main() -> None:
                 else:
                     route = history.pop()
                     print(f"[INFO] rota removida: {route_to_text(route)}")
+
+            elif choice == "7":
+                rocket_name, rocket_speed_mkm_per_day = choose_rocket()
+                print(f"[INFO] foguete selecionado: {rocket_name}")
+                print(f"[INFO] velocidade usada no calculo: {rocket_speed_mkm_per_day:.4f} Mkm/dia")
 
             elif choice == "0":
                 print("[INFO] encerrando")
