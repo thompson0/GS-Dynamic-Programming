@@ -266,11 +266,11 @@ GS-Dynamic-Programming/
 ---
 
 ## 👥 Integrantes do Grupo
--Nícolas Baradel - RM: 563245 
--José Kaneto - RM: 563186
--Gabriel Thompson - RM: 563126 
--Enzo Quarelo - RM: 561503
--João Pedro Sassarrão - RM: 562499
+- Nícolas Baradel - RM: 563245 
+- José Kaneto - RM: 563186
+- Gabriel Thompson - RM: 563126 
+- Enzo Quarelo - RM: 561503
+- João Pedro Sassarrão - RM: 562499
 ---
 
 ## 📝 Referências
