@@ -15,11 +15,24 @@ class Body:
     gravity: float
 
 
+# Import circular evitado com TYPE_CHECKING + string annotation
+@dataclass(frozen=True)
+class MissionProfile:
+    """Espelho leve para uso nos models sem importar graph.py."""
+    name: str
+    description: str
+    w_distance: float
+    w_time: float
+    w_fuel: float
+    w_gravity: float
+
+
 @dataclass(frozen=True)
 class Mission:
     origin: str
     destination: str
-    priority: int = 1  
+    priority: int = 1           # 1=normal, 2=alta, 3=urgente
+    profile: object = None      # MissionProfile — tipado como object p/ evitar circular import
 
 
 @dataclass
@@ -28,8 +41,8 @@ class GraphEdge:
     destination: Body
     distance_mkm: float
     travel_time_days: float
-    fuel_cost: float         
-    gravity_penalty: float   
+    fuel_cost: float
+    gravity_penalty: float
 
 
 @dataclass
@@ -39,4 +52,4 @@ class Route:
     travel_time_days: float
     fuel_cost: float
     score: float
-    criteria: dict = field(default_factory=dict)  
+    criteria: dict = field(default_factory=dict)
