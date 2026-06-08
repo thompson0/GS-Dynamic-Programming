@@ -9,7 +9,6 @@ Campos usados da API:
   semimajorAxis → eixo semi-maior em km (convertemos para Mkm)
   bodyType      → tipo do corpo ("Planet")
 
-Em caso de falha na API, usa dados locais como fallback.
 """
 
 import requests
@@ -34,21 +33,10 @@ NOME_PT: dict[str, str] = {
     "Neptune": "Netuno",
 }
 
-# IDs dos planetas na API (em francês/minúsculo)
 PLANET_IDS = ["mercure", "venus", "terre", "mars",
               "jupiter", "saturne", "uranus", "neptune"]
 
-# Fallback local caso a API esteja fora ou a key seja inválida
-FALLBACK_DATA: dict[str, dict] = {
-    "Mercurio": {"body_type": "planet", "distance_mkm": 57.9,   "gravity": 3.7},
-    "Venus":    {"body_type": "planet", "distance_mkm": 108.2,  "gravity": 8.87},
-    "Terra":    {"body_type": "planet", "distance_mkm": 149.6,  "gravity": 9.81},
-    "Marte":    {"body_type": "planet", "distance_mkm": 227.9,  "gravity": 3.71},
-    "Jupiter":  {"body_type": "planet", "distance_mkm": 778.5,  "gravity": 24.79},
-    "Saturno":  {"body_type": "planet", "distance_mkm": 1434.0, "gravity": 10.44},
-    "Urano":    {"body_type": "planet", "distance_mkm": 2871.0, "gravity": 8.69},
-    "Netuno":   {"body_type": "planet", "distance_mkm": 4495.1, "gravity": 11.15},
-}
+
 
 
 # ──────────────────────────────────────────────
@@ -93,8 +81,6 @@ def _parse_body(data: dict) -> Body | None:
 def fetch_bodies(api_key: str) -> list[Body]:
     """
     Busca os 8 planetas na API e retorna lista de Body.
-    Em caso de erro, usa os dados locais de fallback.
-
     Parâmetros:
         api_key: chave Bearer da Solar System OpenData API
     """
@@ -125,43 +111,12 @@ def fetch_bodies(api_key: str) -> list[Body]:
             print(f"  [ERRO REDE] {planet_id} — {e}")
             erros.append(planet_id)
 
-    # Completa com fallback os planetas que falharam
     if erros:
-        print(f"[API] {len(erros)} planeta(s) com falha — usando dados locais para: {', '.join(erros)}")
-        nomes_ok = {b.name for b in bodies}
-        for nome_pt, info in FALLBACK_DATA.items():
-            if nome_pt not in nomes_ok:
-                bodies.append(Body(
-                    name=nome_pt,
-                    body_type=info["body_type"],
-                    distance_mkm=info["distance_mkm"],
-                    gravity=info["gravity"],
-                ))
-
-    if not bodies:
-        print("[API] Falha total — usando todos os dados locais")
-        return _load_fallback()
+        raise RuntimeError(f"Erro ao carregar dados da API: {len(erros)} planeta(s) com falha")
 
     print(f"[API] {len(bodies)} corpos carregados com sucesso\n")
     return bodies
 
 
-def _load_fallback() -> list[Body]:
-    """Retorna lista de Body com os dados locais."""
-    return [
-        Body(name=n, body_type=i["body_type"],
-             distance_mkm=i["distance_mkm"], gravity=i["gravity"])
-        for n, i in FALLBACK_DATA.items()
-    ]
-
-
-def load_bodies(api_key: str | None = None) -> list[Body]:
-    """
-    Ponto de entrada principal.
-    Se api_key for fornecida, busca da API.
-    Caso contrário, usa dados locais diretamente.
-    """
-    if api_key:
-        return fetch_bodies(api_key)
-    print("[INFO] Sem API key — usando dados locais")
-    return _load_fallback()
+def load_bodies(api_key: str) -> list[Body]:
+    return fetch_bodies(api_key)

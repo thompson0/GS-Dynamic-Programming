@@ -1,9 +1,3 @@
-"""
-M�dulo: main.py
-Ponto de entrada do Space Route Planner.
-Integra grafo multicritério, estruturas de dados e visualização.
-"""
-
 from draw import foguete, planeta, abertura
 from models import Body, Mission, Route, MissionProfile
 from data_structures import Stack, Queue
