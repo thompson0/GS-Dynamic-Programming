@@ -1,29 +1,19 @@
 """
-Módulo: main.py
+M�dulo: main.py
 Ponto de entrada do Space Route Planner.
 Integra grafo multicritério, estruturas de dados e visualização.
 """
 
 from draw import foguete, planeta, abertura
-from models import Body, Mission, Route
+from models import Body, Mission, Route, MissionProfile
 from data_structures import Stack, Queue
 from algorithms import linear_search, binary_search, bubble_sort
-from graph import build_graph, find_best_route, km_s_to_mkm_per_day, choose_profile
+from graph import build_graph, find_best_route, km_s_to_mkm_per_day, choose_profile, MISSION_PROFILES
 from visualizer import plot_route, plot_mission_comparison
+from api_loader import load_bodies
 
-# ──────────────────────────────────────────────
-# Dados dos corpos celestes
-# ──────────────────────────────────────────────
-BODY_DATA = {
-    "Mercurio": {"body_type": "planet", "distance_mkm": 57.9,   "gravity": 3.7},
-    "Venus":    {"body_type": "planet", "distance_mkm": 108.2,  "gravity": 8.87},
-    "Terra":    {"body_type": "planet", "distance_mkm": 149.6,  "gravity": 9.81},
-    "Marte":    {"body_type": "planet", "distance_mkm": 227.9,  "gravity": 3.71},
-    "Jupiter":  {"body_type": "planet", "distance_mkm": 778.5,  "gravity": 24.79},
-    "Saturno":  {"body_type": "planet", "distance_mkm": 1434.0, "gravity": 10.44},
-    "Urano":    {"body_type": "planet", "distance_mkm": 2871.0, "gravity": 8.69},
-    "Netuno":   {"body_type": "planet", "distance_mkm": 4495.1, "gravity": 11.15},
-}
+
+API_KEY = "fff526c8-f44b-4f45-93ce-2f48c97ed35a"
 
 ROCKET_PROFILES = {
     "1": ("Falcon 9",  7.9),
@@ -32,23 +22,10 @@ ROCKET_PROFILES = {
     "4": ("SLS",       10.8),
 }
 
-
-# ──────────────────────────────────────────────
-# Helpers de exibição
-# ──────────────────────────────────────────────
-
-def load_bodies() -> list[Body]:
-    return [
-        Body(name=n, body_type=i["body_type"],
-             distance_mkm=i["distance_mkm"], gravity=i["gravity"])
-        for n, i in BODY_DATA.items()
-    ]
-
-
 def print_body(body: Body) -> None:
     print(
         f"  - {body.name:<10} | {body.body_type:<8} "
-        f"| {body.distance_mkm:>8.1f} Mkm "
+        f"| {body.distance_mkm:>8.2f} Mkm "
         f"| gravidade {body.gravity} m/s²"
     )
 
@@ -85,16 +62,24 @@ def choose_rocket() -> tuple[str, float]:
     return name, km_s_to_mkm_per_day(speed_km_s)
 
 
-# ──────────────────────────────────────────────
-# Main
-# ──────────────────────────────────────────────
+
 
 def main() -> None:
     print(abertura)
 
-    bodies = load_bodies()
-    sorted_bodies = bubble_sort(bodies)   # pré-ordena para busca binária
-    graph = build_graph(bodies)
+    # Variáveis para lazy loading
+    bodies: list[Body] | None = None
+    sorted_bodies: list[Body] | None = None
+    graph: dict[Body, list[GraphEdge]] | None = None
+
+    def ensure_bodies_loaded() -> None:
+        """Carrega os dados sob demanda na primeira requisição."""
+        nonlocal bodies, sorted_bodies, graph
+        if bodies is None:
+            bodies = load_bodies(api_key=API_KEY)
+            sorted_bodies = bubble_sort(bodies)
+            graph = build_graph(bodies)
+            print(f"[INFO] Dados carregados: {len(bodies)} corpos, {sum(len(v) for v in graph.values())} arestas")
 
     missions: Queue = Queue()
     history: Stack = Stack()
@@ -102,12 +87,10 @@ def main() -> None:
     rocket_name = "Falcon 9"
     rocket_speed = km_s_to_mkm_per_day(7.9)
 
-    print("[INFO] Planejador de rota iniciado")
-    print(f"[INFO] Grafo construido: {len(bodies)} corpos, {sum(len(v) for v in graph.values())} arestas")
+    print("[INFO] Planejador de rota iniciado (dados sob demanda)")
 
     while True:
         print()
-        print("═" * 52)
         print("  1 - Listar corpos (ordenados por distância)")
         print("  2 - Buscar corpo por nome  (busca linear)")
         print("  3 - Buscar corpo por distância (busca binária)")
@@ -126,12 +109,14 @@ def main() -> None:
         try:
             # ── 1. Listar corpos ──────────────────────────
             if choice == "1":
+                ensure_bodies_loaded()
                 print(planeta)
                 for body in sorted_bodies:
                     print_body(body)
 
             # ── 2. Busca linear ───────────────────────────
             elif choice == "2":
+                ensure_bodies_loaded()
                 name = input("  Nome: ").strip()
                 body = linear_search(bodies, name)
                 if body is None:
@@ -141,6 +126,7 @@ def main() -> None:
 
             # ── 3. Busca binária ──────────────────────────
             elif choice == "3":
+                ensure_bodies_loaded()
                 try:
                     dist = float(input("  Distância (Mkm): ").strip())
                 except ValueError:
@@ -158,6 +144,7 @@ def main() -> None:
 
             # ── 4. Calcular rota ──────────────────────────
             elif choice == "4":
+                ensure_bodies_loaded()
                 origin_name = input("  Origem: ").strip()
                 dest_name   = input("  Destino: ").strip()
 
@@ -185,6 +172,7 @@ def main() -> None:
 
             # ── 5. Enfileirar missão ──────────────────────
             elif choice == "5":
+                ensure_bodies_loaded()
                 origin_name = input("  Origem: ").strip()
                 dest_name   = input("  Destino: ").strip()
                 profile = choose_profile()
@@ -198,6 +186,7 @@ def main() -> None:
 
             # ── 6. Processar fila ─────────────────────────
             elif choice == "6":
+                ensure_bodies_loaded()
                 if missions.empty():
                     print("[INFO] fila vazia")
                     continue
@@ -229,7 +218,6 @@ def main() -> None:
 
             # ── 8. Comparar missões ───────────────────────
             elif choice == "8":
-                # Coleta todas as rotas da pilha sem destruí-la
                 all_routes: list[Route] = []
                 temp: Stack = Stack()
                 while not history.empty():
@@ -251,7 +239,7 @@ def main() -> None:
                 print(f"[INFO] velocidade: {rocket_speed:.4f} Mkm/dia")
 
             elif choice == "0":
-                print("[INFO] encerrando o planejador.")
+                print("[INFO] encerrando o planejador")
                 break
 
             else:
