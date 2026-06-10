@@ -257,9 +257,7 @@ GS-Dynamic-Programming/
 ├── visualizer.py          # Geração de gráficos orbitais
 ├── draw.py                # ASCII art decorativa
 ├── README.md              # Este arquivo
-├── PROJECT.md             # Documentação técnica detalhada
 ├── requirements.txt       # Dependências do projeto
-├── .gitignore             # Arquivos ignorados no Git
 └── venv/                  # Ambiente virtual Python
 ```
 
